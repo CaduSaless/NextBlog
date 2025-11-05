@@ -30,6 +30,9 @@ services:
       DB_NAME: blogdb
     depends_on:
       - blog_db
+    volumes:
+      - shared_uploads:/app/uploads
+
 
   frontend:
     build: ./frontend
@@ -38,10 +41,13 @@ services:
     ports:
       - "3000:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5001
+      NEXT_PUBLIC_API_URL: http://backend:5001
     depends_on:
       - backend
+    volumes:
+      - shared_uploads:/app/public/uploads
 
 
 volumes:
   blog_data:
+  shared_uploads:

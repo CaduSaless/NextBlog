@@ -5,6 +5,7 @@ import  jwt from "jsonwebtoken"
 import { pool } from './config/bd.js';
 import cookieParser from 'cookie-parser'
 import fileupload from 'express-fileupload'
+import createTables from './config/init.js'
 
 //Inicializando as dependências
 dotenv.config();
@@ -15,7 +16,8 @@ app.use(cors({
   origin: [
     "http://localhost:3000",
     "http://192.168.237.87:3000",
-    "http://172.28.176.1:3000",],
+    "http://172.28.176.1:3000",
+  "http://frontend:3000"],
   credentials: true
 }
 
@@ -24,8 +26,10 @@ app.use(fileupload())
 
 //Iniciando o servidor
 const port = process.env.PORT || 3000;
-app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running at http://localhost:${port}/`);
+createTables().then(() => {
+  app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running at http://localhost:${port}/`);
+  })
 })
 
 //Rotas
@@ -47,7 +51,7 @@ app.get('/news/:id', async (req, res) => {
 //  3. Criar uma notícia
 app.post('/news', async (req, res) => {
   let imageName = req.files?.add_image.name || null;
-  imageName? req.files.add_image.mv("../frontend/public/uploads/"+imageName) : imageName = "default.svg";
+  imageName? req.files.add_image.mv("/app/uploads/"+imageName) : imageName = "default.svg";
 
   const { title, resume, body, author } = req.body;
   if(!title || !resume || !body) {
@@ -68,7 +72,7 @@ app.post('/news', async (req, res) => {
 // 4. Atualizar uma notícia
 app.put('/news/:id', async (req, res) => {
   let imageName = req.files?.add_image.name || null;
-  imageName? req.files.add_image.mv("../frontend/public/uploads/"+imageName) : imageName = imageName;
+  imageName? req.files.add_image.mv("/app/uploads/"+imageName) : imageName = imageName;
   
   const { id } = req.params;
   const { title, resume, body } = req.body;
@@ -89,6 +93,11 @@ app.put('/news/:id', async (req, res) => {
   res.json(updatedPost.rows[0]);
 });
 
+app.delete('/news/:id', async (req, res) => {
+  const { id } = req.params;
+  const newsDeleted = pool.query('DELETE FROM Posts WHERE id=$1 RETURNING *', [id])
+  res.json((await newsDeleted).rows[0])
+})
 
 
 //5. Autenticação do usuário: Apenas verifica se está ou não logado
@@ -118,7 +127,7 @@ app.post('/auth/login', async (req, res) => {
   const { email, senha } = req.body;
 
   const user = await pool.query('select * from usuarios where email= $1', [email]);
-  const password = user.rows[0].senha_hash;
+  const password = user.rows[0]?.senha_hash || '';
   if(!user || password != senha) {
     return res.status(401).json({ message: "Invalid email or password" })
   }
